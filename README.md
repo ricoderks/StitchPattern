@@ -14,5 +14,6 @@ This is an attempt to use R to create stitch patterns from photo's. In the end t
         - 6.3 stitches per cm
         - 7.1 stitches per cm
 - [ ] Get all rgb color codes for all DMC threat colors.
+    - got a list from https://github.com/adrianj/CrossStitchCreator/
 - [ ] Match rgb colors to DMC threat colors?
     - Use eucledian distance to find the best match.
