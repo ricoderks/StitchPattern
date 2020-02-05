@@ -2,49 +2,74 @@ library(magick)
 library(imager)
 library(tidyverse)
 library(gridExtra)
+library(furrr)
+source("./functions.R")
 
 # load image
-my_img2 <- image_read("./butterfly.jpg")
+my_img <- image_read("./butterfly.jpg")
+
 ## first resize image
 # has to be done with magick otherwise there will to may colors again
 # you can get width and height with image_info()
-my_img2a <- image_resize(image = my_img2,
-                         geometry = "400x") # 400px wide
+my_img_small <- image_resize(image = my_img,
+                         geometry = "800x") # 400px wide
 ## reduce the colors in rgb space
-max_colors <- 75
-my_img2aa <- image_quantize(my_img2a, 
+max_colors <- 100
+final_img <- image_quantize(my_img_small, 
                             max = max_colors, # max colors
                             colorspace = "rgb")
 ## write the image to disk as jpg
-image_write(image = my_img2aa,
-            path = "./butterfly_75.jpg",
-            format = "jpg")
+# image_write(image = final_img,
+#             path = "./butterfly_75.jpg",
+#             format = "jpg")
 
 
 ## convert to cimg class for further processing
-cimg_2aa <- magick2cimg(my_img2aa)
+c_img <- magick2cimg(final_img)
 
 ## make wide dataframe
-df2 <- as.data.frame(cimg_2aa)
-df2 <- df2 %>%
+df_img <- as.data.frame(c_img)
+df_img <- df_img %>%
   pivot_wider(names_from = cc,
               names_prefix = "c",
               values_from = value)
 
 ## calculate the rgb colors
-df2 <- df2 %>%
+df_img <- df_img %>%
   mutate(rgb_code = rgb(red = c1,
                         green = c2,
                         blue = c3))
 
 ## check the number of colors
-length(unique(df2$rgb_code))
+length(unique(df_img$rgb_code))
 
 ## here the matching of the dmc thread rgb colors can be done
-# .......
+# read file with DMC rgb color codes
+dmc_codes <- read_csv(file = "./DMC_Cotton_Floss_to_RGB.csv",
+                      col_types = "ccdddcc") %>%
+  # rescale the rgb codes to max value 1
+  mutate_at(c("Red", "Green", "Blue"),
+            ~ . / 255) %>% 
+  mutate(`RGB code` = paste("#", `RGB code`, sep = ""))
+# create dmc matrix
+dmc_m <- as.matrix(dmc_codes[, c("Red", "Green", "Blue", "RGB code")])
+
+# match a rgb code of a pixel to a DMC threat code
+plan(multiprocess)
+uniq_code <- df_img %>% 
+  distinct(rgb_code, .keep_all = TRUE) %>% 
+  mutate(dmc_rgb_code = future_pmap(.l = list(c1, c2, c3),
+                                    .f = ~ calc_dist2(dmc = dmc_m,
+                                                      red = ..1,
+                                                      green = ..2,
+                                                      blue = ..3)))
+
+df_img <- df_img %>% 
+  left_join(y = uniq_code[, c("rgb_code", "dmc_rgb_code")],
+            by = c("rgb_code" = "rgb_code"))
 
 ## create symbols for rgb color codes
-my_symbols <- data.frame(rgb_code = unique(df2$rgb_code),
+my_symbols <- data.frame(rgb_code = unique(df_img$rgb_code),
                          symbols = unlist(strsplit(rawToChar(as.raw(33:126)), split = ""))[1:max_colors])
 
 ## create table for legend
@@ -55,17 +80,19 @@ pdf(file = "my_table.pdf",
     height = 11.7,
     paper = "a4")
 # create the tables
-g1 <- tableGrob(my_symbols[1:38, ])
-g2 <- tableGrob(my_symbols[39:75, ])
+limits <- floor(seq(1, nrow(my_symbols), length.out = 4))
+g1 <- tableGrob(my_symbols[limits[1]:limits[2], ])
+g2 <- tableGrob(my_symbols[(limits[2] + 1):limits[3], ])
+g3 <- tableGrob(my_symbols[(limits[3] + 1):limits[4], ])
 # align the tables
 grid.arrange(
-  gtable_combine(g1, g2, along = 1),
+  gtable_combine(g1, g2, g3, along = 1),
   nrow = 1
 )
 #save
 dev.off()
 
-df2 <- df2 %>% 
+df_img <- df_img %>% 
   left_join(y = my_symbols,
             by = "rgb_code")
 
@@ -75,16 +102,16 @@ p_list <- list()
 
 # step size in x direction
 num_step_w <- 40
-step_w <- ceiling(width(cimg_2aa) / num_step_w)
+step_w <- ceiling(width(c_img) / num_step_w)
 num_step_h <- 80
-step_h <- ceiling(height(cimg_2aa) / num_step_h)
+step_h <- ceiling(height(c_img) / num_step_h)
 
 # initialize page counter
 page_count <- 1
 
 for (xx in 1:step_w) {
   for (yy in 1:step_h) {
-  p_list[[page_count]] <- df2 %>% 
+  p_list[[page_count]] <- df_img %>% 
     ggplot(aes(x = x,
                y = y)) +
     # # use this one to show the picture
@@ -131,16 +158,17 @@ system.time(
 )
 
 ##  show complete pattern
-df2 %>% 
+df_img %>% 
   ggplot(aes(x = x,
              y = y)) +
   # # use this one to show the picture
-  # geom_tile(aes(fill = rgb_code),
-  #           colour = "grey50") +
-  # scale_fill_identity() +
+  geom_tile(aes(fill = dmc_rgb_code)
+            # colour = "grey50"
+            ) +
+  scale_fill_identity() +
   # put the symbols in
-  geom_text(aes(label = symbols),
-            size = 1) +
+  # geom_text(aes(label = symbols),
+  #           size = 1) +
   # modify y-axis
   scale_y_continuous(trans = "reverse",
                      limits = c(step_h * num_step_h, 0),
