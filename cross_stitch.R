@@ -121,10 +121,10 @@ dev.off()
 p_list <- list()
 
 # step size in x direction (width)
-num_step_w <- 25
+num_step_w <- 20
 step_w <- ceiling(width(c_img) / num_step_w)
 # step size in y direction (height)
-num_step_h <- 50
+num_step_h <- 40
 step_h <- ceiling(height(c_img) / num_step_h)
 
 # initialize page counter
@@ -138,7 +138,7 @@ for (xx in 1:step_w) {
                y = y)) +
     # put the symbols in
     geom_text(aes(label = symbols),
-              size = 4) +
+              size = 5) +
     # modify y-axis
     scale_y_continuous(trans = "reverse",
                        limits = c(yy * num_step_h, (yy - 1) * num_step_h),
