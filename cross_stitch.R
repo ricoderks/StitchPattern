@@ -108,7 +108,7 @@ grid.arrange(
   gtable_combine(g1, g2, along = 1),
   nrow = 1
 )
-# # 2nd page
+# # 2nd page, if more than 2 columns are needed
 # grid.arrange(
 #   gtable_combine(g3, along = 1),
 #   nrow = 1
@@ -120,15 +120,17 @@ dev.off()
 # initialize plot list
 p_list <- list()
 
-# step size in x direction
-num_step_w <- 40
+# step size in x direction (width)
+num_step_w <- 25
 step_w <- ceiling(width(c_img) / num_step_w)
-num_step_h <- 80
+# step size in y direction (height)
+num_step_h <- 50
 step_h <- ceiling(height(c_img) / num_step_h)
 
 # initialize page counter
 page_count <- 1
 
+# create all plots and at to a list
 for (xx in 1:step_w) {
   for (yy in 1:step_h) {
   p_list[[page_count]] <- df_img %>% 
@@ -136,7 +138,7 @@ for (xx in 1:step_w) {
                y = y)) +
     # put the symbols in
     geom_text(aes(label = symbols),
-              size = 2) +
+              size = 4) +
     # modify y-axis
     scale_y_continuous(trans = "reverse",
                        limits = c(yy * num_step_h, (yy - 1) * num_step_h),
@@ -158,25 +160,23 @@ for (xx in 1:step_w) {
   }
 }
 
-## combine the plots
+## add each plot on one page
 # this is slow
-system.time(
-  all_plots <- marrangeGrob(p_list, nrow = 1, ncol = 1)
-)
+# this will take several minutes on my laptop
+all_plots <- marrangeGrob(p_list, nrow = 1, ncol = 1)
 
-## save
-system.time(
-  ggsave(filename = "pattern.pdf",
+## save to pdf
+ggsave(filename = "pattern.pdf",
          plot = all_plots,
          width = 21,
          height = 29.7,
          units = "cm")
-)
-
 
 ## save one page
+# use first page as test page
 test_plot <- arrangeGrob(p_list[[1]], nrow = 1, ncol = 1)
 
+# save to pdf
 ggsave(filename = "test_page_pattern.pdf",
        plot = test_plot,
        width = 21,
@@ -184,7 +184,7 @@ ggsave(filename = "test_page_pattern.pdf",
        units = "cm")
 
 
-##  show complete pattern
+## show complete pattern
 df_img %>%
   ggplot(aes(x = x,
              y = y)) +
