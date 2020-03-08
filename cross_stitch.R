@@ -6,15 +6,15 @@ library(furrr)
 source("./functions.R")
 
 # load image
-my_img <- image_read("./butterfly.jpg")
+my_img <- image_read("./marit_matthijs.jpg")
 
 ## first resize image
 # has to be done with magick otherwise there will to may colors again
 # you can get width and height with image_info()
 my_img_small <- image_resize(image = my_img,
-                         geometry = "800x") # 400px wide
+                         geometry = "384x") # 384px wide
 ## reduce the colors in rgb space
-max_colors <- 100
+max_colors <- 75
 final_img <- image_quantize(my_img_small, 
                             max = max_colors, # max colors
                             colorspace = "rgb")
@@ -50,6 +50,7 @@ dmc_codes <- read_csv(file = "./DMC_Cotton_Floss_to_RGB.csv",
   mutate_at(c("Red", "Green", "Blue"),
             ~ . / 255) %>% 
   mutate(`RGB code` = paste("#", `RGB code`, sep = ""))
+
 # create dmc matrix
 dmc_m <- as.matrix(dmc_codes[, c("Red", "Green", "Blue", "RGB code")])
 
@@ -63,6 +64,7 @@ uniq_code <- df_img %>%
                                                           green = ..2,
                                                           blue = ..3)))
 
+# merge with dmc threat code colors
 df_img <- df_img %>% 
   left_join(y = uniq_code[, c("rgb_code", "dmc_rgb_code")],
             by = c("rgb_code" = "rgb_code"))
@@ -91,7 +93,7 @@ df_img <- df_img %>%
 ## create table for legend
 # at the moment this is without DMC thread names
 # define pdf file
-pdf(file = "my_table.pdf",
+pdf(file = "color_scheme.pdf",
     width = 8.3,
     height = 11.7,
     paper = "a4")
@@ -171,31 +173,42 @@ system.time(
          units = "cm")
 )
 
+
+## save one page
+test_plot <- arrangeGrob(p_list[[1]], nrow = 1, ncol = 1)
+
+ggsave(filename = "test_page_pattern.pdf",
+       plot = test_plot,
+       width = 21,
+       height = 29.7,
+       units = "cm")
+
+
 ##  show complete pattern
-# df_img %>% 
-#   ggplot(aes(x = x,
-#              y = y)) +
-#   # # use this one to show the picture
-#   geom_tile(aes(fill = dmc_rgb_code)
-#             # colour = "grey50"
-#             ) +
-#   scale_fill_identity() +
-#   # put the symbols in
-#   # geom_text(aes(label = symbols),
-#   #           size = 1) +
-#   # modify y-axis
-#   scale_y_continuous(trans = "reverse",
-#                      limits = c(step_h * num_step_h, 0),
-#                      breaks = c(1, seq(5, step_h * num_step_h, 5)),
-#                      minor_breaks = c(1.5, seq(1, step_h * num_step_h, 1) + 0.5),
-#                      expand = expand_scale(add = -0.5)) +
-#   # modify x-axis
-#   scale_x_continuous(limits = c(1, step_w * num_step_w),
-#                      breaks = c(1, seq(0, step_w * num_step_w, 5)),
-#                      minor_breaks = c(1.5, seq(1, step_w * num_step_w , 1) + 0.5),
-#                      expand = expand_scale(add = -0.5)) +
-#   # play around with the theme
-#   theme(panel.grid.major = element_blank(),
-#         panel.grid.minor = element_line(colour = "grey"),
-#         panel.background = element_blank(),
-#         axis.line = element_line(colour = "black"))
+df_img %>%
+  ggplot(aes(x = x,
+             y = y)) +
+  # # use this one to show the picture
+  geom_tile(aes(fill = dmc_rgb_code)
+            # colour = "grey50"
+            ) +
+  scale_fill_identity() +
+  # put the symbols in
+  # geom_text(aes(label = symbols),
+  #           size = 1) +
+  # modify y-axis
+  scale_y_continuous(trans = "reverse",
+                     limits = c(step_h * num_step_h, 0),
+                     breaks = c(1, seq(5, step_h * num_step_h, 5)),
+                     minor_breaks = c(1.5, seq(1, step_h * num_step_h, 1) + 0.5),
+                     expand = expand_scale(add = -0.5)) +
+  # modify x-axis
+  scale_x_continuous(limits = c(1, step_w * num_step_w),
+                     breaks = c(1, seq(0, step_w * num_step_w, 5)),
+                     minor_breaks = c(1.5, seq(1, step_w * num_step_w , 1) + 0.5),
+                     expand = expand_scale(add = -0.5)) +
+  # play around with the theme
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_line(colour = "grey"),
+        panel.background = element_blank(),
+        axis.line = element_line(colour = "black"))
